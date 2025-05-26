@@ -58,7 +58,7 @@ void draw_l(context* ctxt, vect pI, vect pF, TPixel col){
     tigrLine(ctxt->win, pI.x, pI.y, pF.x, pF.y, col);
 };
 
-TPixel color(long lit){
+TPixel lrgb(long lit){
     return tigrRGB(lit >> 16, lit >> 8 & 0xff, lit & 0xff);
 };
 

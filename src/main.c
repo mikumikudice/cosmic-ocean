@@ -1,6 +1,7 @@
 #include "engine.c"
 
 typedef struct {
+    TPixel color;
     vect pos;
     vect speed;
     float size;
@@ -18,6 +19,7 @@ typedef struct {
 } bubble;
 
 typedef struct {
+    TPixel color;
     vect pos;
     vect push;
     vect speed;
@@ -81,6 +83,7 @@ void step(context* ctxt){
             pow((npc->self.pos.y + stt->view_point.y) - main->pos.y, 2));
 
         npc->flying = dist > npc->self.side + 4;
+        npc->shooting = dist < npc->self.side * 16 && npc->flying;
         if(npc->flying){
             const vect vp = v_add(npc->self.pos, stt->view_point);
             const vect rv = v_sub(main->pos, vp);
@@ -225,6 +228,12 @@ void draw(context* ctxt){
             float dist = sqrt(pow((star.x) - main.pos.x, 2) + pow((star.y) - main.pos.y, 2));
 
             int ok = dist > main.side * 1.5f;
+            for(int i = 0; i < stt->map->npcs.size; i += 1){
+                ship npc = stt->map->npcs.items[i].self;
+                float dist = sqrt(pow((star.x) - (npc.pos.x + stt->view_point.x), 2) +
+                    pow((star.y) - (npc.pos.y + stt->view_point.y), 2));
+                if(!(dist > npc.side * 1.5f)) ok = 0;
+            };
             if(ok){
                 tigrFillCircle(ctxt->win, star.x, star.y, 2, MWHITE);
             };
@@ -251,12 +260,12 @@ void ship_draw(context* ctxt, ship s, int main){
     for(int v = 0; v < max; v += 1){
         const vect line_0 = v_mul(vertex[v], s.side);
         const vect line_1 = v_mul(vertex[(v + 1) % max], s.side);
-        draw_l(ctxt, v_add(line_0, pos), v_add(line_1, pos), MWHITE);
+        draw_l(ctxt, v_add(line_0, pos), v_add(line_1, pos), s.color);
 
         const vect outline_0 = v_mul(line_0, 1.3f);
         const vect outline_1 = v_mul(line_1, 1.3f);
         draw_l(ctxt, v_add(outline_0, pos),
-            v_add(outline_1, pos), MWHITE);
+            v_add(outline_1, pos), s.color);
 
         if(!v){
             const vect line_2 = v_mul(vertex[2], s.side);
@@ -272,36 +281,37 @@ void ship_draw(context* ctxt, ship s, int main){
             for(float p = 0.1f; p < 0.5f; p += 0.1f){
                 const vect l_trace_0 = v(line_2.x + x_dif_r * p, line_2.y + y_dif_r * p);
                 const vect l_trace_1 = v(anchor.x + x_dif_l * p, anchor.y + y_dif_l * p);
-                draw_l(ctxt, v_add(l_trace_0, pos), v_add(l_trace_1, pos), MWHITE);
+                draw_l(ctxt, v_add(l_trace_0, pos), v_add(l_trace_1, pos), s.color);
 
                 const vect r_trace_0 = v(anchor.x + x_dif_r * p, anchor.y + y_dif_r * p);
                 const vect r_trace_1 = v(line_0.x + x_dif_l * p, line_0.y + y_dif_l * p);
-                draw_l(ctxt, v_add(r_trace_0, pos), v_add(r_trace_1, pos), MWHITE);
+                draw_l(ctxt, v_add(r_trace_0, pos), v_add(r_trace_1, pos), s.color);
             };
 
             const vect midle_0 = v(line_0.x + x_dif_l / 2, line_0.y + y_dif_l / 2);
             const vect midle_1 = v(line_2.x + x_dif_r / 2, line_2.y + y_dif_r / 2);
 
-            draw_l(ctxt, v_add(midle_0, pos), v_add(anchor, pos), MWHITE);
-            draw_l(ctxt, v_add(midle_1, pos), v_add(anchor, pos), MWHITE);
+            draw_l(ctxt, v_add(midle_0, pos), v_add(anchor, pos), s.color);
+            draw_l(ctxt, v_add(midle_1, pos), v_add(anchor, pos), s.color);
         };
     };
     for(int i = 0; i < 8; i += 1){
         if(s.shot[i].active){
             const vect spos = !main ? v_add(s.shot[i].pos, stt->view_point) : s.shot[i].pos;
-            tigrCircle(ctxt->win, spos.x, spos.y, s.shot[i].size, MWHITE);
+            tigrCircle(ctxt->win, spos.x, spos.y, s.shot[i].size, s.shot[i].color);
         };
     };
 
     for(int i = 0; i < 8; i += 1){
         if(s.trail[i].size > 0){
             const vect tpos = !main ? v_add(s.trail[i].pos, stt->view_point) : s.trail[i].pos;
-            tigrCircle(ctxt->win, tpos.x, tpos.y, s.trail[i].size, MWHITE);
+            tigrCircle(ctxt->win, tpos.x, tpos.y, s.trail[i].size, LINCOL);
         };
     };
 };
 
-void ship_init(ship* s, vect pos, float side, float max_speed, float r_speed){
+void ship_init(ship* s, TPixel color, TPixel bolt_color, vect pos, float side, float max_speed, float r_speed){
+    s->color = color;
     s->tick = 0;
     s->pos = pos;
     s->side = side;
@@ -315,6 +325,7 @@ void ship_init(ship* s, vect pos, float side, float max_speed, float r_speed){
         s->trail[i].size = 0;
         s->trail[i].decay = side / 10;
 
+        s->shot[i].color = bolt_color;
         s->shot[i].size = side / 6;
         s->shot[i].active = 0;
         s->shot[i].velocity = side / 80;
@@ -326,14 +337,14 @@ int main(){
     data->width = 760;
     data->height = 760;
 
-    ship_init(&data->main, v(data->width / 2, data->height / 2), 20, 8, 0.02f);
+    ship_init(&data->main, LINCOL, MWHITE, v(data->width / 2, data->height / 2), 20, 8, 0.02f);
 
     data->map = alloc(map_t);
     npc_ship_arr_init(&data->map->npcs, 128);
-    const int max = rand() % 200 + 1;
+    const int max = rand() % 20 + 10;
     for(int i = 0; i < max; i += 1){
         ship s;
-        ship_init(&s, v(rand() % (data->width / 3), rand() % (data->height / 3)), 20, 3, 0.02f);
+        ship_init(&s, lrgb(0xff297f), lrgb(0xff4f5f), v(rand() % (data->width * 2), rand() % (data->height * 2)), 20, 3, 0.02f);
 
         npc_ship npc;
         npc.direction = 0;
