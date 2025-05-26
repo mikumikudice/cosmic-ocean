@@ -8,6 +8,7 @@ typedef struct {
     Tigr* win;
     int width;
     int height;
+    float dt;
     float scale;
     void* data;
     fnl_state noise;
@@ -38,8 +39,11 @@ void init(str title, int w, int h, int flags, void* data,
     ctxt->height = h;
     ctxt->data = data;
 
+    
     int paused = 0;
+    tigrSetPostFX(ctxt->win, 2.1f, 2.1f, 1, 4.2f);
     while(!tigrClosed(ctxt->win)){
+        ctxt->dt = tigrTime();
         if(tigrKeyDown(ctxt->win, TK_ESCAPE)) break;
         if(tigrKeyDown(ctxt->win, TK_RETURN)) paused = !paused;
         if(!paused){

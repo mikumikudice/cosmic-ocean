@@ -56,7 +56,6 @@ typedef struct {
 typedef struct {
     ship main;
     map_t* map;
-    float delta;
     int width;
     int height;
     vect view_point;
@@ -67,9 +66,8 @@ void ship_draw(context*, ship, int);
 
 void step(context* ctxt){
     state* stt = ctxt->data;
-    stt->delta = tigrTime();
-
     ship* main = &stt->main;
+
     ship_step(ctxt, main,
         tigrKeyHeld(ctxt->win, 'A') - tigrKeyHeld(ctxt->win, 'D'),
         tigrKeyHeld(ctxt->win, 'W'),
@@ -95,16 +93,14 @@ void step(context* ctxt){
 };
 
 void ship_step(context* ctxt, ship* s, int rotate, int fly, int shoot, vect* pos, int sign){
-    state* stt = ctxt->data;
     if(fly && v_mod(s->speed) > s->max_speed * 0.8f){
         s->rotation += rotate * s->r_speed;
     };
-
     const vect point = v(sinf(s->rotation + 2.0944f), cosf(s->rotation + 2.0944f));
     const vect dir = v_mul(point, s->side);
 
-    s->tick += stt->delta;
-    s->bubble_tick += stt->delta;
+    s->tick += ctxt->dt;
+    s->bubble_tick += ctxt->dt;
 
     if(shoot && s->tick >= 0.4f){
         const int c = s->cur_shot;
@@ -169,7 +165,7 @@ void ship_step(context* ctxt, ship* s, int rotate, int fly, int shoot, vect* pos
             s->shot[i].pos.x += s->shot[i].speed.x;
             s->shot[i].pos.y += s->shot[i].speed.y;
 
-            s->shot[i].tick += stt->delta;
+            s->shot[i].tick += ctxt->dt;
             if(s->shot[i].tick >= 0.8f){
                 s->shot[i].active = 0;
                 s->shot[i].tick = 0;
@@ -181,7 +177,7 @@ void ship_step(context* ctxt, ship* s, int rotate, int fly, int shoot, vect* pos
         if(s->trail[i].size > 0){
             s->trail[i].pos.x += s->trail[i].speed.x;
             s->trail[i].pos.y += s->trail[i].speed.y;
-            s->trail[i].tick += stt->delta;
+            s->trail[i].tick += ctxt->dt;
 
             if(!s->flying && fabs(v_mod(s->speed)) <
                 fabs(v_mod(s->trail[i].speed))){
