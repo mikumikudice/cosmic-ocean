@@ -38,9 +38,13 @@ void init(str title, int w, int h, int flags, void* data,
     ctxt->height = h;
     ctxt->data = data;
 
+    int paused = 0;
     while(!tigrClosed(ctxt->win)){
         if(tigrKeyDown(ctxt->win, TK_ESCAPE)) break;
-        step(ctxt);
+        if(tigrKeyDown(ctxt->win, TK_RETURN)) paused = !paused;
+        if(!paused){
+            step(ctxt);
+        };
         draw(ctxt);
         tigrUpdate(ctxt->win);
     };

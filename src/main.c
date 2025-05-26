@@ -47,7 +47,6 @@ typedef struct {
     ship self;
 } npc_ship;
 
-dynamic_array(vect);
 dynamic_array(npc_ship);
 
 typedef struct {
