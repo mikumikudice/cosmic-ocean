@@ -41,8 +41,8 @@ void init(str title, int w, int h, int flags, void* data,
 
     
     int paused = 0;
-    tigrSetPostFX(ctxt->win, 2.1f, 2.1f, 1, 4.2f);
     while(!tigrClosed(ctxt->win)){
+        tigrSetPostFX(ctxt->win, 1.3f, 1.3f, 1, 1.2f);
         ctxt->dt = tigrTime();
         if(tigrKeyDown(ctxt->win, TK_ESCAPE)) break;
         if(tigrKeyDown(ctxt->win, TK_RETURN)) paused = !paused;
@@ -69,6 +69,10 @@ void draw_l(context* ctxt, vect pI, vect pF, TPixel col){
 TPixel lrgb(long lit){
     return tigrRGB(lit >> 16, lit >> 8 & 0xff, lit & 0xff);
 };
+
+TIGR_INLINE int cmp_color(TPixel a, TPixel b){
+    return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+}
 
 vect v_add_c(vect a, vect b, float max){
     if(fabs(a.x) + fabs(b.x) <= max && fabs(a.y) + fabs(b.y) <= max){

@@ -59,6 +59,8 @@ typedef struct {
     int width;
     int height;
     vect view_point;
+    vect parallax_0;
+    vect parallax_1;
 } state;
 
 void ship_step(context*, ship*, int, int, int, vect*, int);
@@ -68,11 +70,18 @@ void step(context* ctxt){
     state* stt = ctxt->data;
     ship* main = &stt->main;
 
+    vect mov = { 0 };
     ship_step(ctxt, main,
         tigrKeyHeld(ctxt->win, 'A') - tigrKeyHeld(ctxt->win, 'D'),
         tigrKeyHeld(ctxt->win, 'W'),
         tigrKeyHeld(ctxt->win, TK_SPACE), 
-        &stt->view_point, -1);
+        &mov, -1);
+
+    stt->view_point = v_add(stt->view_point, mov);
+    mov = v_mul(mov, 0.6f);
+    stt->parallax_0 = v_add(stt->parallax_0, mov);
+    mov = v_mul(mov, 0.6f);
+    stt->parallax_1 = v_add(stt->parallax_1, mov);
 
     for(int i = 0; i < stt->map->npcs.size; i += 1){
         npc_ship* npc = &stt->map->npcs.items[i];
@@ -204,19 +213,70 @@ void ship_step(context* ctxt, ship* s, int rotate, int fly, int shoot, vect* pos
     };
 };
 
-const TPixel BG_COL = { 0x0f, 0x0f, 0x1f, 0xff };
-const TPixel LOWCOL = { 0x3f, 0x3f, 0x4f, 0xff };
+const TPixel BG_COL = { 0x0a, 0x0a, 0x1a, 0xff };
+const TPixel LOWCOL = { 0x1f, 0x1f, 0x2f, 0xff };
+const TPixel MIDCOL = { 0x5f, 0x5f, 0x6f, 0xff };
 const TPixel LINCOL = { 0x9f, 0x9f, 0xaf, 0xff };
 const TPixel MWHITE = { 0xf9, 0xf9, 0xf9, 0xff };
 void draw(context* ctxt){
+    assert(cmp_color(MWHITE, MWHITE));
     clear(ctxt, BG_COL);
     
     const state* stt = ctxt->data;
     const ship main = stt->main;
 
-    for(float x = 0; x < ctxt->width; x += 3.3f){
-        for(float y = 0; y < ctxt->height; y += 3.3f){
+    for(float x = 0; x < ctxt->width; x += 3.6f){
+        for(float y = 0; y < ctxt->height; y += 3.6f){
             const float seed = fnlGetNoise2D(&ctxt->noise, (x - stt->view_point.x) * 1.2f, (y - stt->view_point.y) * 1.2f);
+            if(!(seed > 0.9f)) continue;
+
+            const vect star = v(x, y);
+            float dist = sqrt(pow((star.x) - main.pos.x, 2) + pow((star.y) - main.pos.y, 2));
+
+            int ok = dist > main.side * 1.1f;
+            for(int i = 0; i < stt->map->npcs.size; i += 1){
+                ship npc = stt->map->npcs.items[i].self;
+                float dist = sqrt(pow((star.x) - (npc.pos.x + stt->view_point.x), 2) +
+                    pow((star.y) - (npc.pos.y + stt->view_point.y), 2));
+                if(!(dist > npc.side * 1.1f)) ok = 0;
+            };
+            if(ok){
+                tigrFillCircle(ctxt->win, star.x, star.y, 2, MWHITE);
+            };
+        };
+    };
+    for(float x = 0; x < ctxt->width; x += 4.3f){
+        for(float y = 0; y < ctxt->height; y += 4.3f){
+            const float seed = fnlGetNoise2D(&ctxt->noise,
+                (x - stt->parallax_0.x), (y - stt->parallax_0.y));
+            if(!(seed > 0.9f)) continue;
+
+            const vect star = v(x, y);
+            float dist = sqrt(pow((star.x) - main.pos.x, 2) + pow((star.y) - main.pos.y, 2));
+
+            int ok = dist > main.side * 1.3f;
+            for(int i = 0; i < stt->map->npcs.size; i += 1){
+                ship npc = stt->map->npcs.items[i].self;
+                float dist = sqrt(pow((star.x) - (npc.pos.x + stt->view_point.x), 2) +
+                    pow((star.y) - (npc.pos.y + stt->view_point.y), 2));
+                if(!(dist > npc.side * 1.3f)) ok = 0;
+            };
+            for(int ox = -5; ox < 6; ox += 1){
+                for(int oy = -5; oy < 6; oy += 1){
+                    if(cmp_color(tigrGet(ctxt->win, star.x + ox, star.y + oy), MWHITE)){
+                        ok = 0;
+                    }
+                }
+            }
+            if(ok){
+                tigrFillCircle(ctxt->win, star.x, star.y, 2, MIDCOL);
+            };
+        };
+    };
+        for(float x = 0; x < ctxt->width; x += 5.1f){
+        for(float y = 0; y < ctxt->height; y += 5.1f){
+            const float seed = fnlGetNoise2D(&ctxt->noise,
+                (x - stt->parallax_1.x), (y - stt->parallax_1.y));
             if(!(seed > 0.9f)) continue;
 
             const vect star = v(x, y);
@@ -229,11 +289,20 @@ void draw(context* ctxt){
                     pow((star.y) - (npc.pos.y + stt->view_point.y), 2));
                 if(!(dist > npc.side * 1.5f)) ok = 0;
             };
+            for(int ox = -7; ox < 8; ox += 1){
+                for(int oy = -7; oy < 8; oy += 1){
+                    if(cmp_color(tigrGet(ctxt->win, star.x + ox, star.y + oy), MIDCOL) ||
+                        cmp_color(tigrGet(ctxt->win, star.x + ox, star.y + oy), MWHITE)){
+                        ok = 0;
+                    }
+                }
+            }
             if(ok){
-                tigrFillCircle(ctxt->win, star.x, star.y, 2, MWHITE);
+                tigrFillCircle(ctxt->win, star.x, star.y, 2, LOWCOL);
             };
         };
     };
+
     ship_draw(ctxt, main, 1);
 
     for(int i = 0; i < stt->map->npcs.size; i += 1){
@@ -349,6 +418,8 @@ int main(){
         npc_ship_arr_append(&data->map->npcs, npc);
     };
     data->view_point = v(data->width / 3, data->height / 3);
+    data->parallax_0 = v(rand() % data->width, rand() % data->width);
+    data->parallax_1 = v(rand() % data->width, rand() % data->width);
 
     init("cosmic ocean", data->width, data->height,
         TIGR_AUTO | TIGR_NOCURSOR, data, &step, &draw);
